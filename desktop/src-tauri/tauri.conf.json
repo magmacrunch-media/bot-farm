@@ -1,0 +1,47 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "BOT FARM",
+  "version": "0.1.0",
+  "identifier": "com.magmacrunch.bot-farm",
+  "build": {
+    "frontendDist": "../../app"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "BOT//FARM",
+        "url": "ui/index.html",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 960,
+        "minHeight": 640,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; font-src 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": [
+      "msi",
+      "nsis",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "publisher": "magmacrunch media LLC",
+    "copyright": "Copyright 2026 magmacrunch media",
+    "shortDescription": "A farm of every bot the family runs",
+    "longDescription": "Keeps an eye on the GitHub Actions workflows, Pi cron bots, MC1 scheduled tasks and self-hosted runners, drawn as a farm."
+  }
+}

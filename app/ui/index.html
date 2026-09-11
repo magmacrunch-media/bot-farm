@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en" data-app="BotFarm">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BOT//FARM</title>
+    <link rel="stylesheet" href="../shell/fonts.css">
+    <link rel="stylesheet" href="../shell/app-shell.css">
+    <link rel="stylesheet" href="../shell/toast.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="mobile-notice">
+        The farm is best walked on a desktop or laptop.<br>
+        Please visit on a wider screen.
+    </div>
+
+    <header>
+        <div class="header-left">
+            <h1 class="glitch" data-text="BOT//FARM">BOT//FARM</h1>
+            <span class="sys-stat" id="source-chip" title="Where the readings come from">…</span>
+        </div>
+        <div class="header-right">
+            <span class="sys-stat" id="rounds">LAST ROUNDS —</span>
+            <button class="btn" id="check-on" title="Walk the farm again (R)">CHECK ON</button>
+        </div>
+    </header>
+
+    <!-- Feeds that could not be read. One dead source dims its own field and
+         nothing else; this strip says which, so a quiet field is never
+         mistaken for a healthy one. -->
+    <div class="trouble" id="trouble" hidden></div>
+
+    <main class="workspace">
+        <div class="farm" id="farm">
+            <div class="sky" aria-hidden="true">
+                <div class="sun"></div>
+                <div class="cloud c1"></div>
+                <div class="cloud c2"></div>
+                <div class="cloud c3"></div>
+            </div>
+            <!-- fields are drawn here by main.js -->
+        </div>
+    </main>
+
+    <footer>
+        <div class="footer-text"><span id="report">walking the farm…</span> · <span id="app-version"></span></div>
+    </footer>
+
+    <!-- Load order is the dependency order, asserted by tests/run.mjs.
+         kit/boot.js is FIRST: it exists to report failures in everything
+         after it. Then the rest of the kit, then core/ (pure), then ui/. -->
+    <script src="../kit/boot.js"></script>
+    <script src="../kit/bridge-core.js"></script>
+    <script src="../kit/keys.js"></script>
+    <script src="../kit/history.js"></script>
+    <script src="../kit/prefs.js"></script>
+    <script src="../kit/modal.js"></script>
+    <script src="../kit/dom.js"></script>
+    <script src="../shell/toast.js"></script>
+    <script src="../core/herd.js"></script>
+    <script src="../core/evidence.js"></script>
+    <script src="../core/health.js"></script>
+    <script src="bridge.js"></script>
+    <script src="feeds.js"></script>
+    <script src="main.js"></script>
+</body>
+</html>

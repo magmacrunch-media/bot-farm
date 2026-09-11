@@ -1,0 +1,17 @@
+{
+  "name": "bot-farm",
+  "version": "0.1.0",
+  "private": true,
+  "description": "BOT//FARM",
+  "scripts": {
+    "test": "node tests/run.mjs",
+    "lint": "eslint .",
+    "check": "npm run lint && npm test",
+    "sync-kit": "node ../magma-kit/scripts/sync.mjs .",
+    "check:kit": "node ../magma-kit/scripts/sync.mjs --check .",
+    "serve": "npx serve app -l 3300"
+  },
+  "devDependencies": {
+    "eslint": "^9 || ^10"
+  }
+}

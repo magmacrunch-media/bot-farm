@@ -1,0 +1,271 @@
+/* ═══════════════════════════════════════════════
+   magmacrunch media — ware app shell
+   ware/shell/app-shell.css
+
+   The chrome shared by the standalone "workstation" tools:
+   album-art-maker, media-search, pixel-process, sprite-forge,
+   magnolia/api.html.
+
+   THE APP MUST DEFINE: --bg, --surface, --border, --text, --dim, --accent.
+   This file reads all six and defines none of them. See ware/shell/README.md.
+
+   THE RULE: this file defines tokens, apps override tokens.
+   Every value that differs between the apps is a custom property with a
+   default here. An app's own stylesheet loads *after* this one and sets
+   them on :root — not on body.class, which does not reliably win against
+   a :root fallback (same reason AGENTS.md gives for the nav variables).
+
+   Panels, dropdowns and form controls are deliberately NOT here. The apps
+   draw them differently enough (1px vs 2px borders, 7px vs 9px labels,
+   fixed vs absolute dropdown positioning) that tokenising them would cost
+   more than it saved. See ware/shell/README.md.
+   ═══════════════════════════════════════════════ */
+
+/* ── FONTS ──
+   The @font-face blocks moved to ware/shell/fonts.css, which every app links
+   ahead of this file. They are the only part of the shell with a path out to
+   the repo, so keeping them separate leaves this file portable. */
+
+/* ── SHELL TOKENS ──
+   Defaults reproduce album-art-maker, the most neutral of the four.
+   An app that sets none of these still renders correctly. */
+:root {
+    --scanline:       rgba(0,0,0,0.12);  /* body scanline overlay */
+    --title-size:     16px;              /* h1.glitch */
+    --title-color:    var(--text);
+    --title-glow:     none;              /* h1.glitch text-shadow */
+    --glitch-speed:   2s;
+    --glitch-tint-1:  rgba(160,160,176,0.3);
+    --glitch-tint-2:  rgba(160,160,176,0.3);
+    --chrome-tint-1:  rgba(160,160,176,0.35);
+    --chrome-tint-2:  rgba(160,160,176,0.35);
+    --stat-font:      'Press Start 2P', monospace;
+    --stat-size:      8px;
+    --footer-pad:     12px 24px;
+    --backlink-color: var(--dim);
+    --backlink-hover: var(--text);
+    --backlink-glow:  rgba(240,234,216,0.3);
+    --backlink-hover-border: var(--dim);
+    --notice-accent:  #00f5ff;
+}
+
+/* ── RESET ── */
+*, *::before, *::after {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* ── BASE ── */
+html, body {
+    height: 100%;
+    overflow: hidden;
+}
+
+/* user-select is NOT set here: media-search wants its results selectable,
+   the three canvas tools do not. Each app states its own. */
+body {
+    font-family: 'Press Start 2P', monospace;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 8px;
+    display: flex;
+    flex-direction: column;
+    background-image: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        var(--scanline) 2px, var(--scanline) 4px
+    );
+}
+
+/* ── HEADER ── */
+header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+    z-index: 10;
+}
+
+.header-left  { display: flex; align-items: center; gap: 16px; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+
+/* magnolia's .header-stat is a bare Courier Prime label, not this chip —
+   same slot in the header, different component. It keeps its own rule. */
+.sys-stat {
+    font-family: var(--stat-font);
+    font-size: var(--stat-size);
+    color: var(--dim);
+    background: var(--surface);
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+}
+
+/* ── GLITCH TITLE ── */
+h1.glitch {
+    font-family: 'Press Start 2P', monospace;
+    font-size: var(--title-size);
+    color: var(--title-color);
+    text-shadow: var(--title-glow);
+    position: relative;
+}
+
+h1.glitch::before,
+h1.glitch::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0.8;
+}
+
+h1.glitch::before {
+    animation: glitch-1 var(--glitch-speed) infinite linear alternate-reverse;
+    clip-path: inset(0 0 65% 0);
+    color: var(--glitch-tint-1);
+}
+
+h1.glitch::after {
+    animation: glitch-2 var(--glitch-speed) infinite linear alternate-reverse;
+    clip-path: inset(65% 0 0 0);
+    color: var(--glitch-tint-2);
+}
+
+/* magnolia redefines these two with a smoother curve — its stylesheet loads
+   after this one, so the later definition wins. */
+@keyframes glitch-1 {
+    0%, 95% { transform: translate(0); }
+    96%  { transform: translate(-2px, 1px); }
+    97%  { transform: translate(2px, -1px); }
+    98%  { transform: translate(-1px, 2px); }
+    99%  { transform: translate(1px, -2px); }
+    100% { transform: translate(0); }
+}
+
+@keyframes glitch-2 {
+    0%, 95% { transform: translate(0); }
+    96%  { transform: translate(2px, -1px); }
+    97%  { transform: translate(-2px, 1px); }
+    98%  { transform: translate(1px, -2px); }
+    99%  { transform: translate(-1px, 2px); }
+    100% { transform: translate(0); }
+}
+
+/* ── CHROME GLITCH (inline text variant) ── */
+.chrome {
+    position: relative;
+    display: inline-block;
+}
+
+.chrome::before,
+.chrome::after {
+    content: attr(data-text);
+    position: absolute;
+    left: 0;
+    top: 0;
+    opacity: 0.8;
+    pointer-events: none;
+}
+
+.chrome::before {
+    animation: chrome-glitch-1 3s infinite linear alternate-reverse;
+    clip-path: inset(0 0 50% 0);
+    color: var(--chrome-tint-1);
+}
+
+.chrome::after {
+    animation: chrome-glitch-2 3s infinite linear alternate-reverse;
+    clip-path: inset(50% 0 0 0);
+    color: var(--chrome-tint-2);
+}
+
+@keyframes chrome-glitch-1 {
+    0%, 92% { transform: translate(0); }
+    93% { transform: translate(-1px, 0); }
+    94% { transform: translate(1px, 0); }
+    95% { transform: translate(0); }
+}
+
+@keyframes chrome-glitch-2 {
+    0%, 94% { transform: translate(0); }
+    95% { transform: translate(1px, 0); }
+    96% { transform: translate(-1px, 0); }
+    97% { transform: translate(0); }
+}
+
+/* ── TOOL NAV (back to the ware index) ── */
+.tool-nav {
+    padding: 8px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    flex-shrink: 0;
+}
+
+.tool-nav .back-link {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: var(--backlink-color);
+    text-decoration: none;
+    letter-spacing: 0.1em;
+    transition: color 0.15s, border-color 0.15s, text-shadow 0.15s;
+}
+
+.tool-nav .back-link:hover {
+    color: var(--backlink-hover);
+    text-shadow: 0 0 6px var(--backlink-glow);
+}
+
+/* album-art-maker and pixel-process draw the back link as a chip.
+   Opt in with class="back-link chip". */
+.tool-nav .back-link.chip {
+    background: var(--surface);
+    padding: 6px 10px;
+    border: 1px solid var(--border);
+}
+
+.tool-nav .back-link.chip:hover {
+    border-color: var(--backlink-hover-border);
+}
+
+/* ── WORKSPACE ── */
+.workspace {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ── FOOTER ── */
+footer {
+    padding: var(--footer-pad);
+    border-top: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.footer-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    color: var(--dim);
+}
+
+.footer-text span { color: var(--accent); }
+
+/* ── MOBILE NOTICE ── */
+@media (min-width: 769px) {
+    .mobile-notice { display: none; }
+}
+
+.mobile-notice {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    text-align: center;
+    padding: 16px 20px;
+    margin: 12px auto;
+    max-width: 500px;
+    border: 2px solid var(--notice-accent);
+    border-radius: 4px;
+    background: rgba(0,245,255,0.05);
+    color: var(--notice-accent);
+    line-height: 2;
+}

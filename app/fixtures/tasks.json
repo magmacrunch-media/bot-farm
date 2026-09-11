@@ -1,0 +1,90 @@
+[
+    {
+        "name":  "DolphinClick",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-08-20T12:43:46.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "DolphinKeys",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-08-20T12:45:16.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "DolphinRun",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-08-20T13:35:38.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "MagmaCrunchHistorianBot",
+        "state":  "Running",
+        "enabled":  true,
+        "lastRun":  "2026-09-09T11:58:41.0000000Z",
+        "lastResult":  267009,
+        "nextRun":  null
+    },
+    {
+        "name":  "MagmaCrunchOllamaServe",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-09-09T11:58:41.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "OllamaServe",
+        "state":  "Disabled",
+        "enabled":  false,
+        "lastRun":  "2026-09-05T13:19:57.0000000Z",
+        "lastResult":  1073807364,
+        "nextRun":  null
+    },
+    {
+        "name":  "OneDrive Reporting Task-S-1-5-21-1046790136-170940558-2857515872-1001",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-09-10T03:08:44.0000000Z",
+        "lastResult":  0,
+        "nextRun":  "2026-09-11T03:08:43.0000000Z"
+    },
+    {
+        "name":  "OneDrive Standalone Update Task-S-1-5-21-1046790136-170940558-2857515872-1001",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-09-10T02:50:13.0000000Z",
+        "lastResult":  2147806724,
+        "nextRun":  "2026-09-12T03:44:13.0000000Z"
+    },
+    {
+        "name":  "OneDrive Startup Task-S-1-5-21-1046790136-170940558-2857515872-1001",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-09-09T12:08:42.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "StartOllama64k",
+        "state":  "Disabled",
+        "enabled":  false,
+        "lastRun":  "2026-08-16T21:46:29.0000000Z",
+        "lastResult":  0,
+        "nextRun":  null
+    },
+    {
+        "name":  "SyncRepos",
+        "state":  "Ready",
+        "enabled":  true,
+        "lastRun":  "2026-09-11T02:11:01.0000000Z",
+        "lastResult":  0,
+        "nextRun":  "2026-09-11T03:11:00.0000000Z"
+    }
+]

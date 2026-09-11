@@ -1,0 +1,42 @@
+[package]
+name = "bot-farm"
+version = "0.1.0"
+description = "BOT//FARM"
+authors = ["magmacrunch media"]
+license = "PolyForm-Noncommercial-1.0.0"
+edition = "2021"
+rust-version = "1.77"
+
+# The library is what the mobile entry points would call; on desktop main.rs
+# just delegates to it. Keeping the split now costs nothing and is the shape
+# tauri's own templates use.
+[lib]
+name = "bot_farm_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+# Confirm-before-chore only. No shell/http/opener plugin: every chore is a
+# named command in src/farm.rs behind its own allowlist, so the webview's
+# permission surface stays at the dialog and the CSP can forbid it reaching
+# the network at all.
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# The two probes are plain http:// (localhost, and the Pi over Tailscale);
+# no TLS, same reasoning as magma-ops.
+ureq = { version = "2", default-features = false }
+# VISIT: hand a GitHub link to the default browser. Validated in farm.rs.
+open = "5"
+# The shared kit — a sibling checkout. See magma-kit/README.md.
+magma-kit = { path = "../../../magma-kit/crate", features = ["dialog"] }
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true

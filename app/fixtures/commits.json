@@ -1,0 +1,20 @@
+{
+ "magmacrunch-media/magmacrunch.com|Update MusicBrainz cache": null,
+ "magmacrunch-media/magmacrunch.com|Update TMDB cache": {
+  "author": "github-actions[bot]",
+  "date": "2026-07-27T12:50:09.000Z",
+  "html_url": "https://github.com/magmacrunch-media/magmacrunch.com/commit/20193e80b5ee7b67f5acda1feeac99e87f4207ac",
+  "sha": "20193e8",
+  "subject": "Update TMDB cache"
+ },
+ "magmacrunch-media/magmacrunch.com|Update Last.fm play counts": null,
+ "magmacrunch-media/magmacrunch.com|Update score data": null,
+ "magmacrunch-media/magmacrunch.com|Rebuild search index": null,
+ "magmacrunch-media/magmacrunch.com|Update theme color audit": {
+  "author": "github-actions[bot]",
+  "date": "2026-09-10T02:44:51.000Z",
+  "html_url": "https://github.com/magmacrunch-media/magmacrunch.com/commit/452380b6e54a0785854d490f532777ab434cf347",
+  "sha": "452380b",
+  "subject": "Update theme color audit"
+ }
+}

@@ -1,0 +1,45 @@
+/* ═══════════════════════════════════════════════
+   SPRITE//FORGE — self-hosted faces for the shell
+
+   The swapped copy of ware/shell/fonts.css. That file carries the only
+   filesystem assumption in the whole shell — '../../fonts/', true only while
+   it sits exactly two levels below the magmacrunch.com repo root — and says
+   in its own header that a bundled desktop build should replace this one
+   small file rather than edit the shell. This is that replacement.
+
+   Here the shell is vendored at shell/ and the faces at fonts/, one level up
+   instead of two. Nothing else in shell/ is path-dependent, so nothing else
+   is forked; app-shell.css and toast.* are byte copies and must stay that way
+   so an upstream fix can be re-vendored without a merge.
+
+   Not sent to the website by scripts/sync-web.mjs: the synced page sits at
+   ware/sprite-forge/ and loads ware/shell/fonts.css, the original, whose
+   two-level path is correct there.
+
+   Both faces are under the SIL Open Font License 1.1, and clause 2 requires
+   the licence to travel with them. It does: fonts/PressStart2P-OFL.txt and
+   fonts/CourierPrime-OFL.txt sit beside the files, inside app/, which Tauri
+   embeds whole — so they are in the installed binary and not only the repo.
+   Re-vendoring a face means re-vendoring its licence.
+   ═══════════════════════════════════════════════ */
+
+@font-face {
+    font-family: 'Press Start 2P';
+    src: url('../fonts/PressStart2P-Regular.woff2') format('woff2'),
+         url('../fonts/PressStart2P-Regular.ttf') format('truetype');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Courier Prime';
+    font-weight: 400;
+    src: url('../fonts/CourierPrime-Regular.woff2') format('woff2');
+    font-display: swap;
+}
+
+@font-face {
+    font-family: 'Courier Prime';
+    font-weight: 700;
+    src: url('../fonts/CourierPrime-Bold.woff2') format('woff2');
+    font-display: swap;
+}
