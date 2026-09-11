@@ -31,7 +31,7 @@
     /** Where bots live, in the order the farm draws them. */
     const FIELDS = [
         { id: 'pasture', name: 'PASTURE', tag: 'GitHub Actions', blurb: 'workflows grazing in the cloud' },
-        { id: 'coop', name: 'COOP', tag: 'Pi cron', blurb: 'the Raspberry Pi — seen by the commits they leave' },
+        { id: 'coop', name: 'COOP', tag: 'Pi cron', blurb: 'the Raspberry Pi — seen by the commits they leave; Pi time is America/New_York' },
         { id: 'barn', name: 'BARN', tag: 'MC1 scheduled tasks', blurb: 'this machine' },
         { id: 'stable', name: 'STABLE', tag: 'self-hosted runners', blurb: 'the workhorses' },
     ];
@@ -122,37 +122,37 @@
         // ── COOP: Pi cron bots ──────────────────────────────
         {
             id: 'pi-musicbrainz', name: 'MusicBrainz Backup', species: 'chicken', field: 'coop',
-            does: 'refreshes the MusicBrainz cache and pushes it', cadence: 'Mon 06:00 UTC', stale: 8 * DAY,
+            does: 'refreshes the MusicBrainz cache and pushes it', cadence: 'Mon 06:00 Pi time', stale: 8 * DAY,
             source: { kind: 'commit', repo: SITE, subject: 'Update MusicBrainz cache' },
             feed: { kind: 'workflow', repo: SITE, file: 'backup-musicbrainz.yml' },
         },
         {
             id: 'pi-tmdb', name: 'TMDB Backup', species: 'chicken', field: 'coop',
-            does: 'refreshes the TMDB cache and pushes it', cadence: 'Mon 06:30 UTC', stale: 8 * DAY,
+            does: 'refreshes the TMDB cache and pushes it', cadence: 'Mon 06:35 Pi time', stale: 8 * DAY,
             source: { kind: 'commit', repo: SITE, subject: 'Update TMDB cache' },
             feed: { kind: 'workflow', repo: SITE, file: 'backup-tmdb.yml' },
         },
         {
             id: 'pi-play-counts', name: 'Play Counts', species: 'chicken', field: 'coop',
-            does: 'fetches Last.fm play counts and pushes them', cadence: 'Mon 06:00 UTC', stale: 8 * DAY,
+            does: 'fetches Last.fm play counts and pushes them', cadence: 'Mon 06:05 Pi time', stale: 8 * DAY,
             source: { kind: 'commit', repo: SITE, subject: 'Update Last.fm play counts' },
             feed: { kind: 'workflow', repo: SITE, file: 'play-counts.yml' },
         },
         {
             id: 'pi-weekly-scores', name: 'Weekly Scores', species: 'chicken', field: 'coop',
-            does: 'posts the leaderboard to a Discussion and Discord', cadence: 'Mon 06:00 UTC', stale: 8 * DAY,
+            does: 'posts the leaderboard to a Discussion and Discord', cadence: 'Mon 06:10 Pi time', stale: 8 * DAY,
             source: { kind: 'commit', repo: SITE, subject: 'Update score data' },
             feed: { kind: 'workflow', repo: SITE, file: 'weekly-scores.yml' },
         },
         {
             id: 'pi-search-index', name: 'Search Index', species: 'duck', field: 'coop',
-            does: 'rebuilds the search index and pushes it', cadence: 'daily 07:00 UTC', stale: 2 * DAY,
+            does: 'rebuilds the search index and pushes it', cadence: 'daily 07:05 Pi time', stale: 2 * DAY,
             source: { kind: 'commit', repo: SITE, subject: 'Rebuild search index' },
             feed: { kind: 'workflow', repo: SITE, file: 'rebuild-search-index.yml' },
         },
         {
             id: 'pi-check-links', name: 'Link Checker', species: 'owl', field: 'coop',
-            does: 'lychee over every page; files an Issue when links break', cadence: 'Mon 06:00 UTC',
+            does: 'lychee over every page; files an Issue when links break', cadence: 'Mon 06:15 Pi time',
             source: { kind: 'none', why: 'success leaves no commit — only a failure files an Issue' },
             feed: { kind: 'workflow', repo: SITE, file: 'check-links.yml' },
         },
@@ -164,7 +164,7 @@
         },
         {
             id: 'pi-smoke-test', name: 'Smoke Test', species: 'owl', field: 'coop',
-            does: 'Playwright smoke tests; files an Issue on failure', cadence: 'Mon 10:00 UTC',
+            does: 'Playwright smoke tests; files an Issue on failure', cadence: 'Mon 10:00 Pi time',
             source: { kind: 'none', why: 'success leaves no trace — only a failure files an Issue' },
             feed: { kind: 'workflow', repo: SITE, file: 'smoke-test.yml' },
         },
