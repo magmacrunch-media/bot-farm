@@ -71,6 +71,14 @@
         return `${p(d.getHours())}:${p(d.getMinutes())}`;
     }
 
+    /** Which sky to paint: the farm keeps the local clock. */
+    function timeOfDay(h) {
+        if (h < 5 || h >= 21) return 'night';
+        if (h < 7) return 'dawn';
+        if (h < 19) return 'day';
+        return 'dusk';
+    }
+
     function draw() {
         const now = Date.now();
         const feeds = last ? last.feeds : {};
@@ -79,7 +87,9 @@
 
         const farm = $('farm');
         farm.querySelectorAll('.field').forEach((n) => n.remove());
+        $('sky').className = `sky t-${timeOfDay(new Date(now).getHours())}`;
 
+        let index = 0;
         for (const { field, bots } of App.herd.byField(herd)) {
             if (!bots.length) continue;
             const sec = el('section', `field field-${field.id}`);
@@ -95,7 +105,7 @@
             sec.append(head);
 
             const pens = el('div', 'pens');
-            for (const b of bots) pens.append(pen(b, evidence[b.id], verdicts[b.id]));
+            for (const b of bots) pens.append(pen(b, evidence[b.id], verdicts[b.id], index++));
             sec.append(pens);
             farm.append(sec);
         }
@@ -113,13 +123,21 @@
         trouble(last ? last.errors : {});
     }
 
-    function pen(bot, ev, v) {
+    function pen(bot, ev, v, index) {
         const card = el('article', `pen tone-${v.tone}`);
         card.dataset.id = bot.id;
 
+        // The pen is a fenced patch of the field's ground: the animal stands
+        // in its stall on the left, and a chalkboard nailed to the fence says
+        // what it is up to.
         const species = App.herd.SPECIES[bot.species];
+        const stall = el('div', `stall ${v.state}`);
         const sprite = el('div', `sprite ${v.state}`, species.sprite);
         sprite.title = `${species.name} — ${v.label.toLowerCase()}`;
+        // Grazing animals dip their heads now and then; stagger them so the
+        // whole field does not nod in unison.
+        sprite.style.animationDelay = `${-((index * 2.3) % 9).toFixed(1)}s`;
+        stall.append(sprite);
 
         const name = el('div', 'name', bot.name);
         name.append(el('span', `state ${v.tone}`, v.label));
@@ -150,7 +168,9 @@
             chores.append(b);
         }
 
-        card.append(sprite, name, line, does, chores);
+        const board = el('div', 'board');
+        board.append(name, line, does, chores);
+        card.append(stall, board);
         return card;
     }
 

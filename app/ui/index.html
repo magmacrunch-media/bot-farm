@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>BOT//FARM</title>
+    <link rel="icon" href="favicon.png">
     <link rel="stylesheet" href="../shell/fonts.css">
     <link rel="stylesheet" href="../shell/app-shell.css">
     <link rel="stylesheet" href="../shell/toast.css">
@@ -17,6 +18,7 @@
 
     <header>
         <div class="header-left">
+            <img class="logo" src="favicon.png" alt="" width="32" height="32">
             <h1 class="glitch" data-text="BOT//FARM">BOT//FARM</h1>
             <span class="sys-stat" id="source-chip" title="Where the readings come from">…</span>
         </div>
@@ -33,11 +35,93 @@
 
     <main class="workspace">
         <div class="farm" id="farm">
-            <div class="sky" aria-hidden="true">
+            <!-- The horizon. Purely decorative; main.js sets t-dawn / t-day /
+                 t-dusk / t-night from the local clock on every draw. -->
+            <div class="sky t-day" id="sky" aria-hidden="true">
+                <div class="stars"></div>
                 <div class="sun"></div>
+                <div class="moon"></div>
                 <div class="cloud c1"></div>
                 <div class="cloud c2"></div>
                 <div class="cloud c3"></div>
+                <div class="scenery">
+                    <svg class="hills-back" viewBox="0 0 1000 60" preserveAspectRatio="none">
+                        <path d="M0 34 Q120 8 260 26 T560 20 T820 14 T1000 28 V60 H0 Z" fill="#78b04a"/>
+                    </svg>
+                    <svg class="tree t1" viewBox="0 0 16 22" width="32" height="44" shape-rendering="crispEdges">
+                        <rect x="7" y="14" width="2" height="8" fill="#5a3a1e"/>
+                        <rect x="3" y="2" width="10" height="12" fill="#3f7d28"/>
+                        <rect x="1" y="5" width="14" height="7" fill="#3f7d28"/>
+                        <rect x="5" y="3" width="4" height="3" fill="#5a9c36"/>
+                    </svg>
+                    <svg class="barn" viewBox="0 0 60 56" width="120" height="112" shape-rendering="crispEdges">
+                        <defs>
+                            <clipPath id="barn-face"><polygon points="6,56 6,30 12,17 30,10 48,17 54,30 54,56"/></clipPath>
+                        </defs>
+                        <rect x="29" y="2" width="2" height="9" fill="#7c8186"/>
+                        <rect class="bulb" x="28" y="0" width="4" height="3" fill="#ff5a4e"/>
+                        <polyline points="3,31 10,15 30,7 50,15 57,31" fill="none" stroke="#3d130d" stroke-width="5"/>
+                        <polygon points="6,56 6,30 12,17 30,10 48,17 54,30 54,56" fill="#b3362a"/>
+                        <g clip-path="url(#barn-face)" fill="#962c21">
+                            <rect x="9" y="0" width="1" height="56"/><rect x="13" y="0" width="1" height="56"/>
+                            <rect x="17" y="0" width="1" height="56"/><rect x="21" y="0" width="1" height="56"/>
+                            <rect x="38" y="0" width="1" height="56"/><rect x="42" y="0" width="1" height="56"/>
+                            <rect x="46" y="0" width="1" height="56"/><rect x="50" y="0" width="1" height="56"/>
+                        </g>
+                        <polyline points="6,56 6,30 12,17 30,10 48,17 54,30 54,56" fill="none" stroke="#f3e9c6" stroke-width="1.5"/>
+                        <rect x="6" y="29.5" width="48" height="1.5" fill="#f3e9c6"/>
+                        <rect x="24" y="17" width="12" height="9" fill="#1d130c" stroke="#f3e9c6" stroke-width="1.5"/>
+                        <g class="eyes" fill="#7ff3ff">
+                            <rect x="26" y="20" width="3" height="2.5"/>
+                            <rect x="31" y="20" width="3" height="2.5"/>
+                        </g>
+                        <rect x="10" y="36" width="6" height="6" fill="#1d130c" stroke="#f3e9c6" stroke-width="1.2"/>
+                        <rect x="44" y="36" width="6" height="6" fill="#1d130c" stroke="#f3e9c6" stroke-width="1.2"/>
+                        <rect x="20" y="37" width="20" height="19" fill="#8a281e" stroke="#f3e9c6" stroke-width="1.5"/>
+                        <path d="M20 37 L40 56 M40 37 L20 56" stroke="#f3e9c6" stroke-width="1.2"/>
+                    </svg>
+                    <svg class="silo" viewBox="0 0 18 52" width="36" height="104" shape-rendering="crispEdges">
+                        <path d="M1 14 Q9 1 17 14 Z" fill="#7f8b91"/>
+                        <rect x="1" y="14" width="16" height="38" fill="#c5ced2"/>
+                        <g fill="#a3aeb3">
+                            <rect x="1" y="21" width="16" height="1.5"/><rect x="1" y="29" width="16" height="1.5"/>
+                            <rect x="1" y="37" width="16" height="1.5"/><rect x="1" y="45" width="16" height="1.5"/>
+                        </g>
+                        <rect x="11" y="14" width="3" height="38" fill="#e3e9eb" opacity="0.6"/>
+                    </svg>
+                    <svg class="windmill" viewBox="0 0 50 100" width="60" height="120">
+                        <g stroke="#5a4632" stroke-width="1.6" fill="none">
+                            <path d="M23 26 L14 100 M27 26 L36 100"/>
+                            <path d="M22 40 L29 52 L19 66 L32 80 L16 96 M28 40 L21 52 L31 66 L18 80 L34 96"/>
+                        </g>
+                        <path d="M25 22 H40" stroke="#5a4632" stroke-width="1.6"/>
+                        <polygon points="38,15 47,13 47,27 38,25" fill="#c9c2b0" stroke="#5a4632" stroke-width="1"/>
+                        <g class="fan" fill="#ddd6c4" stroke="#6d6250" stroke-width="0.6">
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(0 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(30 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(60 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(90 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(120 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(150 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(180 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(210 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(240 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(270 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(300 25 22)"/>
+                            <rect x="23.7" y="5" width="2.6" height="13" transform="rotate(330 25 22)"/>
+                        </g>
+                        <circle cx="25" cy="22" r="3" fill="#5a4632"/>
+                    </svg>
+                    <svg class="tree t2" viewBox="0 0 16 22" width="28" height="38" shape-rendering="crispEdges">
+                        <rect x="7" y="14" width="2" height="8" fill="#5a3a1e"/>
+                        <rect x="3" y="2" width="10" height="12" fill="#3f7d28"/>
+                        <rect x="1" y="5" width="14" height="7" fill="#3f7d28"/>
+                        <rect x="5" y="3" width="4" height="3" fill="#5a9c36"/>
+                    </svg>
+                    <svg class="hills-front" viewBox="0 0 1000 30" preserveAspectRatio="none">
+                        <path d="M0 16 Q200 4 420 14 T800 10 T1000 12 V30 H0 Z" fill="#4e8f30"/>
+                    </svg>
+                </div>
             </div>
             <!-- fields are drawn here by main.js -->
         </div>
