@@ -26,9 +26,13 @@ tauri = { version = "2", features = [] }
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# The two probes are plain http:// (localhost, and the Pi over Tailscale);
-# no TLS, same reasoning as magma-ops.
-ureq = { version = "2", default-features = false }
+# The probes are plain http:// (localhost, and the Pi over Tailscale), but
+# the Discord webhook check is not optional about TLS — and without it every
+# webhook would read "could not reach Discord", which is a false SICK on
+# three rows and precisely the kind of confident wrong answer this app is
+# for. rustls rather than native-tls: it carries its own roots, so the
+# reading does not depend on the machine's certificate store.
+ureq = { version = "2", default-features = false, features = ["tls"] }
 # VISIT: hand a GitHub link to the default browser. Validated in farm.rs.
 open = "5"
 # The shared kit — a sibling checkout. See magma-kit/README.md.

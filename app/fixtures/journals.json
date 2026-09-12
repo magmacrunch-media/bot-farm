@@ -1,0 +1,27 @@
+{
+ "historian": {
+  "found": true,
+  "dir": "C:\\magma\\dev\\magmacrunch\\apps\\historian-tui\\data\\journal",
+  "file": "2026-09-11.jsonl",
+  "at": 1789147578737,
+  "events": {
+   "discord_ready": {
+    "ts": "2026-09-11T17:26:18Z",
+    "session": "20260909T115849Z",
+    "event": "discord_ready",
+    "bot": "magmacrunch historian#9043",
+    "channel": "1540934838083915907",
+    "model": "magmacrunch-historian",
+    "ollama": "http://localhost:11434"
+   },
+   "ollama_ready": {
+    "ts": "2026-09-11T17:26:18Z",
+    "session": "20260909T115849Z",
+    "event": "ollama_ready",
+    "ollama": "http://localhost:11434",
+    "model": "magmacrunch-historian",
+    "model_present": true
+   }
+  }
+ }
+}

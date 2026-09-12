@@ -49,6 +49,8 @@ pub fn run() {
             tasks_list,
             task_action,
             probe,
+            journal,
+            webhook,
             open_url,
         ])
         .run(tauri::generate_context!())
@@ -153,6 +155,25 @@ async fn task_action(action: String, name: String) -> Result<String, String> {
 #[tauri::command]
 async fn probe(name: String) -> Result<Value, String> {
     blocking(move || farm::probe(&name)).await
+}
+
+#[tauri::command]
+async fn journal(name: String) -> Result<Value, String> {
+    blocking(move || farm::journal(&name)).await
+}
+
+/// The webhook URLs this machine holds, if it holds any, live beside
+/// herd.json — config, not repo, because they are credentials and because
+/// which of them a machine has is that machine's business. farm.rs resolves
+/// the name against this file and never hands the URL back.
+#[tauri::command]
+async fn webhook(app: tauri::AppHandle, name: String) -> Result<Value, String> {
+    let secrets = app
+        .path()
+        .app_config_dir()
+        .map(|d| d.join("webhooks.json").display().to_string())
+        .ok();
+    blocking(move || farm::webhook(&name, secrets.as_deref())).await
 }
 
 #[tauri::command]

@@ -24,6 +24,8 @@
         const seenCommit = new Set();
         const runnerRepos = new Set();
         const probes = new Set();
+        const journals = new Set();
+        const webhooks = new Set();
         let tasks = false;
         for (const b of herd) {
             const s = b.source || {};
@@ -32,13 +34,19 @@
                 const k = App.evidence.commitKey(s);
                 if (!seenCommit.has(k)) { seenCommit.add(k); commits.push(s); }
             }
-            if (s.kind === 'task' || (s.kind === 'probe' && s.task)) tasks = true;
+            if (s.kind === 'task' || ((s.kind === 'probe' || s.kind === 'journal') && s.task)) tasks = true;
             if (s.kind === 'runner') runnerRepos.add(s.repo);
             if (s.kind === 'probe') probes.add(s.probe);
+            if (s.kind === 'journal') journals.add(s.journal);
+            if (s.kind === 'webhook') webhooks.add(s.webhook);
             if (b.feed && b.feed.kind === 'workflow') repos.add(b.feed.repo);
             if (b.feed && b.feed.kind === 'task') tasks = true;
         }
-        return { runs: [...runs], repos: [...repos], commits, tasks, runnerRepos: [...runnerRepos], probes: [...probes] };
+        return {
+            runs: [...runs], repos: [...repos], commits, tasks,
+            runnerRepos: [...runnerRepos], probes: [...probes],
+            journals: [...journals], webhooks: [...webhooks],
+        };
     }
 
     function settle(p, onError) {
@@ -58,6 +66,8 @@
         const commits = {};
         const runners = {};
         const probes = {};
+        const journals = {};
+        const webhooks = {};
 
         const jobs = [];
 
@@ -103,11 +113,20 @@
         for (const name of w.probes) {
             jobs.push(settle(F.probe(name).then((p) => { probes[name] = p; }), fail('probe:' + name)));
         }
+        for (const name of w.journals) {
+            jobs.push(settle(F.journal(name).then((j) => { journals[name] = j; }), fail('journal:' + name)));
+        }
+        for (const name of w.webhooks) {
+            jobs.push(settle(F.webhook(name).then((h) => { webhooks[name] = h; }), fail('webhook:' + name)));
+        }
         let tasks;
         if (w.tasks) jobs.push(settle(F.tasksList().then((t) => { tasks = t; }), fail('tasks')));
 
         await Promise.all(jobs);
-        return { feeds: { runs, workflows, commits, tasks, runners, probes }, errors, source: 'live' };
+        return {
+            feeds: { runs, workflows, commits, tasks, runners, probes, journals, webhooks },
+            errors, source: 'live',
+        };
     }
 
     function commitRow(item) {
@@ -132,10 +151,13 @@
                 return await r.json();
             } catch (e) { errors[name] = String(e && e.message || e); return undefined; }
         };
-        const [runs, workflows, commits, tasks, runners, probes] = await Promise.all(
-            ['runs', 'workflows', 'commits', 'tasks', 'runners', 'probes'].map(get),
-        );
-        return { feeds: { runs, workflows, commits, tasks, runners, probes }, errors, source: 'fixtures' };
+        const names = ['runs', 'workflows', 'commits', 'tasks', 'runners', 'probes', 'journals', 'webhooks'];
+        const [runs, workflows, commits, tasks, runners, probes, journals, webhooks] =
+            await Promise.all(names.map(get));
+        return {
+            feeds: { runs, workflows, commits, tasks, runners, probes, journals, webhooks },
+            errors, source: 'fixtures',
+        };
     }
 
     App.feeds = { wants, fetch: (herd) => (App.farm ? live(herd) : fixtures()) };

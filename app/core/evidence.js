@@ -9,6 +9,8 @@
 //   feeds.tasks      [{ name, state, enabled, lastRun, lastResult, nextRun }]
 //   feeds.runners    { "<repo>": [{ name, status, busy }] }
 //   feeds.probes     { "<probe>": { ok, at, detail } }
+//   feeds.journals   { "<journal>": { found, file, at, events: { <event>: {...} } } }
+//   feeds.webhooks   { "<webhook>": { known, ok, at, detail, name } }
 //
 // A feed that is missing entirely (the call failed, or has not been made yet)
 // is `undefined`, and the evidence says so — `found: null` — rather than
@@ -125,10 +127,91 @@
             });
         },
 
+        journal(src, feeds) {
+            const all = feeds.journals;
+            if (!all || !(src.journal in all)) return blank({ detail: 'journal not read' });
+            const j = all[src.journal];
+            if (!j) return blank({ detail: 'journal not read' });
+            if (!j.found) return blank({ found: false, detail: j.detail || `no journal for ${src.journal}` });
+
+            // The task, when there is one, answers a question the journal
+            // cannot: the journal is written at startup, so its last lines
+            // describe a process that may have died an hour ago.
+            const t = src.task && Array.isArray(feeds.tasks)
+                ? feeds.tasks.find((x) => x.name === src.task)
+                : undefined;
+            const enabled = t ? !!t.enabled : null;
+            const up = t ? t.state === 'Running' : null;
+
+            const e = j.events || {};
+            const good = e.ollama_ready;
+            const bad = e.ollama_unreachable;
+            const ollama = newest(good, bad);
+            const discord = e.discord_ready;
+            const at = latest([discord, ollama]) || j.at || null;
+
+            // A journal with no startup line in it at all says nothing about
+            // the bot either way. A stopped process is still a verdict — the
+            // task answers that — but otherwise this is ignorance, and
+            // ignorance reads UNKNOWN here as everywhere else rather than
+            // becoming a SICK nobody can act on.
+            if (!discord && !ollama) {
+                return up === false
+                    ? blank({ found: true, enabled, ok: false, at, detail: 'process not running' })
+                    : blank({ enabled, at, detail: 'no startup line in the journal' });
+            }
+
+            const said = [];
+            said.push(discord
+                ? `Discord as ${discord.bot || 'the bot'}`
+                : 'no Discord connection recorded');
+            if (!ollama) said.push('Ollama unrecorded');
+            else if (ollama === good) {
+                said.push(good.model_present === false
+                    ? `Ollama up but ${good.model || 'the model'} is missing`
+                    : 'Ollama reachable');
+            } else said.push(`Ollama unreachable (${bad.where || 'startup'})`);
+
+            // Every one of these three is enough on its own to make the bot
+            // useless while still looking alive, which is the whole reason
+            // this source kind exists.
+            let ok = !!discord && ollama === good && good.model_present !== false;
+            if (up === false) { ok = false; said.unshift('process not running'); }
+            return blank({ found: true, enabled, ok, at, detail: said.join(' · ') });
+        },
+
+        webhook(src, feeds) {
+            const all = feeds.webhooks;
+            if (!all || !(src.webhook in all)) return blank({ detail: 'webhook not checked' });
+            const w = all[src.webhook];
+            if (!w) return blank({ detail: 'webhook not checked' });
+            // No local copy of the URL is ignorance, not health and not
+            // absence: the webhook may be perfectly alive on the Pi. UNKNOWN
+            // is the honest reading and the one the farm exists to give.
+            if (!w.known) return blank({ detail: w.detail || 'no local copy of this webhook' });
+            return blank({
+                found: true, ok: !!w.ok, at: w.at || null,
+                detail: w.detail || (w.ok ? `delivers to ${w.name || 'Discord'}` : 'rejected'),
+            });
+        },
+
         none(src) {
             return blank({ found: true, detail: src.why || 'leaves no trace' });
         },
     };
+
+    /** Of two journal records, whichever was written last; either may be absent. */
+    function newest(a, b) {
+        if (!a) return b || null;
+        if (!b) return a;
+        return (ms(b.ts) || 0) > (ms(a.ts) || 0) ? b : a;
+    }
+
+    /** The latest `ts` among some journal records, or null. */
+    function latest(records) {
+        const times = records.map((r) => r && ms(r.ts)).filter((t) => t !== null && t !== undefined);
+        return times.length ? Math.max(...times) : null;
+    }
 
     /** A Windows scheduled task row -> evidence. Exported for the tests. */
     function taskEvidence(t) {

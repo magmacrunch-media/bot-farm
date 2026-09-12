@@ -1,10 +1,12 @@
 //! The chores: everything the webview may ask this side to do that a browser
-//! tab could not — run `gh`, read and poke scheduled tasks, probe two HTTP
-//! endpoints, open a link.
+//! tab could not — run `gh`, read and poke scheduled tasks, probe HTTP
+//! endpoints, read a bot's own journal, open a link.
 //!
 //! Every function here sits behind an allowlist, and the allowlists are the
 //! point. The webview never holds a token (gh's keyring does), never names a
-//! URL (only a probe name or a GitHub path under the org), and never passes
+//! URL (only a probe, journal or webhook name, or a GitHub path under the
+//! org), never learns a webhook URL even for a webhook it asked about, and
+//! never sees a line of the Historian's conversation; and it never passes
 //! anything shell-shaped: task names and workflow files are validated against
 //! a character set before they go anywhere near a command line. A compromised
 //! page could feed a workflow early; it could not read a secret or run a
@@ -25,6 +27,41 @@ const PROBES: &[(&str, &str)] = &[
     ("ollama", "http://localhost:11434/api/tags"),
     ("pi-status", "http://100.74.172.4:8784/status.json"),
 ];
+
+/// The journals a long-running bot writes about itself: (name, environment
+/// override, default directory, the events that may be read).
+///
+/// The event list is an allowlist and not a convenience. The Historian's
+/// journal records every message anybody sends it; the three lines below are
+/// the ones that say whether it can answer at all, and nothing else needs to
+/// leave this process.
+const JOURNALS: &[(&str, &str, &str, &[&str])] = &[(
+    "historian",
+    "HISTORIAN_JOURNAL_DIR",
+    r"C:\magma\dev\magmacrunch\apps\historian-tui\data\journal",
+    &["discord_ready", "ollama_ready", "ollama_unreachable"],
+)];
+
+/// How many days back to look for a startup line. A bot that has been up for
+/// a week wrote its `discord_ready` a week ago and has said nothing since.
+const JOURNAL_DAYS: usize = 14;
+
+/// Never read more than this from one journal file; the tail is what matters.
+const JOURNAL_TAIL: usize = 512 * 1024;
+
+/// The Discord webhooks, by name and by where this machine's copy of the URL
+/// would be found. A webhook URL is a bearer credential: it is not in the
+/// herd, it is not returned to the webview, and it is not written to the log.
+/// A name that resolves to nothing reads UNKNOWN, which is the truth — the
+/// webhook may be perfectly alive somewhere this machine cannot see.
+const WEBHOOKS: &[(&str, &str)] = &[
+    ("alerts-pi", "BOT_FARM_WEBHOOK_ALERTS_PI"),
+    ("alerts-actions", "BOT_FARM_WEBHOOK_ALERTS_ACTIONS"),
+    ("scores-ops", "BOT_FARM_WEBHOOK_SCORES_OPS"),
+];
+
+/// The only thing a resolved webhook is allowed to be.
+const WEBHOOK_PREFIX: &str = "https://discord.com/api/webhooks/";
 
 // ── process plumbing ────────────────────────────────────────
 
@@ -223,6 +260,225 @@ pub fn probe(name: &str) -> Result<Value, String> {
     })
 }
 
+// ── journals ────────────────────────────────────────────────
+
+/// Keep a journal field only if it cannot carry what somebody said. `text` is
+/// the field the conversation lives in; everything else is short and factual,
+/// and truncating guards against a long error string all the same.
+fn sanitize(record: &Value) -> Value {
+    let mut out = serde_json::Map::new();
+    if let Some(obj) = record.as_object() {
+        for (k, v) in obj {
+            if k == "text" {
+                continue;
+            }
+            out.insert(
+                k.clone(),
+                match v.as_str() {
+                    Some(s) if s.chars().count() > 200 => {
+                        Value::from(s.chars().take(200).collect::<String>())
+                    }
+                    _ => v.clone(),
+                },
+            );
+        }
+    }
+    Value::Object(out)
+}
+
+/// The last `cap` bytes of a file, starting at a line boundary.
+fn tail(path: &std::path::Path, cap: usize) -> Result<String, String> {
+    let bytes = std::fs::read(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let slice = if bytes.len() > cap {
+        let start = bytes.len() - cap;
+        match bytes[start..].iter().position(|b| *b == b'\n') {
+            Some(i) => &bytes[start + i + 1..],
+            None => &bytes[start..],
+        }
+    } else {
+        &bytes[..]
+    };
+    Ok(String::from_utf8_lossy(slice).into_owned())
+}
+
+fn mtime_ms(path: &std::path::Path) -> Option<u64> {
+    std::fs::metadata(path)
+        .and_then(|m| m.modified())
+        .ok()
+        .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+        .map(|d| d.as_millis() as u64)
+}
+
+/// `{ found, dir, file, at, events }` — the newest record of each allowlisted
+/// event, searched backwards through the last `JOURNAL_DAYS` files.
+///
+/// Never an Err except for a name that is not in the table: a missing journal
+/// directory is a reading, and the reading is that the bot has never written
+/// one.
+pub fn journal(name: &str) -> Result<Value, String> {
+    let Some((_, env_var, default_dir, events)) = JOURNALS.iter().find(|(n, ..)| *n == name) else {
+        return Err(format!("unknown journal: {name}"));
+    };
+    let dir = std::env::var(env_var).unwrap_or_else(|_| (*default_dir).to_string());
+    let dir = std::path::Path::new(&dir);
+    if !dir.is_dir() {
+        return Ok(json!({
+            "found": false,
+            "dir": dir.display().to_string(),
+            "detail": format!("no journal directory at {}", dir.display()),
+        }));
+    }
+
+    // The files are date-named, so the name sorts as the day does.
+    let mut files: Vec<_> = std::fs::read_dir(dir)
+        .map_err(|e| format!("{}: {e}", dir.display()))?
+        .filter_map(|e| e.ok().map(|e| e.path()))
+        .filter(|p| p.extension().map(|x| x == "jsonl").unwrap_or(false))
+        .collect();
+    files.sort();
+    files.reverse();
+
+    if files.is_empty() {
+        return Ok(json!({
+            "found": false,
+            "dir": dir.display().to_string(),
+            "detail": "journal directory is empty",
+        }));
+    }
+
+    let newest = files[0].clone();
+    let mut found = serde_json::Map::new();
+    for path in files.iter().take(JOURNAL_DAYS) {
+        if found.len() == events.len() {
+            break;
+        }
+        let Ok(body) = tail(path, JOURNAL_TAIL) else { continue };
+        // Backwards, so the first hit for an event is its latest.
+        for line in body.lines().rev() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            let Ok(rec) = serde_json::from_str::<Value>(line) else { continue };
+            let Some(event) = rec["event"].as_str() else { continue };
+            if events.contains(&event) && !found.contains_key(event) {
+                found.insert(event.to_string(), sanitize(&rec));
+            }
+        }
+    }
+
+    Ok(json!({
+        "found": true,
+        "dir": dir.display().to_string(),
+        "file": newest.file_name().map(|f| f.to_string_lossy().into_owned()),
+        "at": mtime_ms(&newest),
+        "events": Value::Object(found),
+    }))
+}
+
+// ── webhooks ────────────────────────────────────────────────
+
+/// The reading for a webhook that could not be reached at all.
+///
+/// Fixed text, and that is the point: ureq's own error Display embeds the URL
+/// it was handed, so stringifying a transport error here would write the
+/// credential into the window and into the log file. There is nothing in that
+/// string the farm needs — "could not reach Discord" is the whole reading.
+fn unreachable_reading() -> Value {
+    json!({ "known": true, "ok": false, "at": now_ms(), "detail": "could not reach Discord" })
+}
+
+/// This machine's copy of a webhook URL, or None. Environment first so a
+/// shell can override without editing a file; then `webhooks.json` in the
+/// config directory, `{ "<name>": "<url>" }`.
+fn webhook_url(name: &str, env_var: &str, secrets: Option<&str>) -> Option<String> {
+    if let Ok(v) = std::env::var(env_var) {
+        let v = v.trim().to_string();
+        if !v.is_empty() {
+            return Some(v);
+        }
+    }
+    let path = secrets?;
+    let body = std::fs::read_to_string(path).ok()?;
+    let v: Value = serde_json::from_str(&body).ok()?;
+    let url = v.get(name)?.as_str()?.trim().to_string();
+    if url.is_empty() {
+        None
+    } else {
+        Some(url)
+    }
+}
+
+/// `{ known, ok, at, detail, name }` for one named webhook.
+///
+/// The URL goes out and nothing about it comes back. Discord answers a GET on
+/// a live webhook with its own name and channel, and a revoked one with 401
+/// "Invalid Webhook Token" or 404 "Unknown Webhook" — which is the whole
+/// reading. A transport error is reported WITHOUT the error's own text,
+/// because ureq puts the URL it was given into that string and the URL is the
+/// credential.
+pub fn webhook(name: &str, secrets: Option<&str>) -> Result<Value, String> {
+    let Some((_, env_var)) = WEBHOOKS.iter().find(|(n, _)| *n == name) else {
+        return Err(format!("unknown webhook: {name}"));
+    };
+    let Some(url) = webhook_url(name, env_var, secrets) else {
+        return Ok(json!({
+            "known": false,
+            "detail": format!("no local copy — set {env_var}, or add \"{name}\" to webhooks.json"),
+        }));
+    };
+    if !url.starts_with(WEBHOOK_PREFIX) {
+        return Ok(json!({
+            "known": true,
+            "ok": false,
+            "at": now_ms(),
+            "detail": "the configured value is not a Discord webhook URL",
+        }));
+    }
+
+    let agent = ureq::AgentBuilder::new()
+        .timeout_connect(Duration::from_secs(4))
+        .timeout_read(Duration::from_secs(6))
+        .build();
+    match agent.get(&url).call() {
+        Ok(resp) => {
+            let body = resp.into_string().unwrap_or_default();
+            let v: Value = serde_json::from_str(&body).unwrap_or(Value::Null);
+            let hook = v["name"].as_str().unwrap_or("").to_string();
+            Ok(json!({
+                "known": true,
+                "ok": true,
+                "at": now_ms(),
+                "name": if hook.is_empty() { Value::Null } else { Value::from(hook.clone()) },
+                "detail": if hook.is_empty() {
+                    "Discord accepts it".to_string()
+                } else {
+                    format!("Discord answers for \"{hook}\"")
+                },
+            }))
+        }
+        Err(ureq::Error::Status(code, resp)) => {
+            let body = resp.into_string().unwrap_or_default();
+            let why = serde_json::from_str::<Value>(&body)
+                .ok()
+                .and_then(|v| v["message"].as_str().map(|s| one_line(s)))
+                .unwrap_or_default();
+            Ok(json!({
+                "known": true,
+                "ok": false,
+                "at": now_ms(),
+                "detail": if why.is_empty() {
+                    format!("Discord refuses it: HTTP {code}")
+                } else {
+                    format!("Discord refuses it: {code} {why}")
+                },
+            }))
+        }
+        // Deliberately not `e.to_string()`: ureq embeds the URL in it.
+        Err(_) => Ok(unreachable_reading()),
+    }
+}
+
 // ── links ───────────────────────────────────────────────────
 
 pub fn open_url(url: &str) -> Result<(), String> {
@@ -291,5 +547,161 @@ mod tests {
         assert!(open_url("http://github.com/x").is_err());
         assert!(open_url("https://github.com.evil.example/x").is_err());
         assert!(open_url("https://github.com/x y").is_err());
+    }
+
+    // ── journals ────────────────────────────────────────────
+
+    // Tests run in parallel and the environment is shared, so each test below
+    // owns a different variable and no two touch the same one.
+
+    #[test]
+    fn journals_are_named_not_passed_through() {
+        assert!(journal(r"C:\Users\magma\.ssh").is_err());
+        assert!(journal("../../secrets").is_err());
+        assert!(journal("").is_err());
+        assert!(JOURNALS.iter().any(|(n, ..)| *n == "historian"), "the herd names it");
+    }
+
+    #[test]
+    fn what_was_said_never_leaves_the_journal() {
+        let rec = json!({
+            "event": "discord_user",
+            "text": "the thing somebody typed",
+            "channel": "1540934838083915907",
+        });
+        let clean = sanitize(&rec);
+        assert!(clean.get("text").is_none(), "the conversation must not cross");
+        assert_eq!(clean["channel"], "1540934838083915907");
+    }
+
+    #[test]
+    fn a_long_field_is_truncated() {
+        let rec = json!({ "event": "ollama_unreachable", "detail": "x".repeat(5000) });
+        let n = sanitize(&rec)["detail"].as_str().unwrap().chars().count();
+        assert_eq!(n, 200);
+    }
+
+    #[test]
+    fn the_latest_of_each_event_wins_across_days() {
+        // First, against the real thing, when this machine has one: a reader
+        // that only ever meets lines a test wrote is a reader that agrees
+        // with the test's idea of the format rather than the bot's.
+        if std::path::Path::new(JOURNALS[0].2).is_dir() {
+            let v = journal("historian").unwrap();
+            assert_eq!(v["found"], true);
+            assert!(
+                v["file"].as_str().unwrap_or("").ends_with(".jsonl"),
+                "found a journal file: {v}"
+            );
+            assert!(
+                v["events"]["discord_ready"]["bot"].is_string(),
+                "the real journal parses: {}",
+                v["events"]
+            );
+            assert!(v["events"]["discord_ready"]["text"].is_null());
+        }
+
+        let dir = std::env::temp_dir().join(format!("bot-farm-journal-{}", now_ms()));
+        std::fs::create_dir_all(&dir).unwrap();
+        // Tuesday: the bot started and could not reach Ollama.
+        std::fs::write(
+            dir.join("2026-09-10.jsonl"),
+            "{\"event\":\"discord_ready\",\"ts\":\"2026-09-10T01:00:00Z\",\"bot\":\"Historian\"}\n\
+             {\"event\":\"ollama_unreachable\",\"ts\":\"2026-09-10T01:00:01Z\",\"where\":\"startup\"}\n",
+        )
+        .unwrap();
+        // Wednesday: it was restarted and Ollama answered. Nothing rewrote
+        // discord_ready, so yesterday's is still the latest one there is.
+        std::fs::write(
+            dir.join("2026-09-11.jsonl"),
+            "{\"event\":\"ollama_ready\",\"ts\":\"2026-09-11T02:00:00Z\",\"model_present\":true}\n",
+        )
+        .unwrap();
+
+        std::env::set_var("HISTORIAN_JOURNAL_DIR", &dir);
+        let v = journal("historian").unwrap();
+        std::env::remove_var("HISTORIAN_JOURNAL_DIR");
+        std::fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(v["found"], true);
+        assert_eq!(v["file"], "2026-09-11.jsonl");
+        assert_eq!(v["events"]["discord_ready"]["bot"], "Historian");
+        assert_eq!(v["events"]["ollama_ready"]["model_present"], true);
+        assert_eq!(v["events"]["ollama_unreachable"]["where"], "startup");
+
+        // And a journal that is not there at all is a reading, not an error:
+        // in the same test because it shares the variable above.
+        std::env::set_var("HISTORIAN_JOURNAL_DIR", r"C:\no\such\journal\anywhere");
+        let gone = journal("historian").unwrap();
+        std::env::remove_var("HISTORIAN_JOURNAL_DIR");
+        assert_eq!(gone["found"], false);
+    }
+
+    // ── webhooks ────────────────────────────────────────────
+
+    #[test]
+    fn webhooks_are_named_not_passed_through() {
+        assert!(webhook("https://discord.com/api/webhooks/1/abc", None).is_err());
+        assert!(webhook("", None).is_err());
+        assert!(webhook("../../secrets", None).is_err());
+        for n in ["alerts-pi", "alerts-actions", "scores-ops"] {
+            assert!(WEBHOOKS.iter().any(|(k, _)| *k == n), "the herd names {n}");
+        }
+    }
+
+    #[test]
+    fn an_unresolvable_webhook_is_unknown_not_healthy() {
+        std::env::remove_var("BOT_FARM_WEBHOOK_ALERTS_ACTIONS");
+        let v = webhook("alerts-actions", None).unwrap();
+        assert_eq!(v["known"], false);
+        assert!(v["ok"].is_null(), "unknown is never ok — that is the whole rule");
+    }
+
+    #[test]
+    fn a_configured_value_that_is_not_a_webhook_is_never_fetched() {
+        std::env::set_var("BOT_FARM_WEBHOOK_SCORES_OPS", "https://evil.example/collect");
+        let v = webhook("scores-ops", None).unwrap();
+        std::env::remove_var("BOT_FARM_WEBHOOK_SCORES_OPS");
+        assert_eq!(v["ok"], false);
+        assert!(!v["detail"].as_str().unwrap().contains("evil.example"));
+    }
+
+    #[test]
+    fn a_webhook_comes_from_the_environment_or_the_secrets_file() {
+        let dir = std::env::temp_dir().join(format!("bot-farm-hooks-{}", now_ms()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let file = dir.join("webhooks.json");
+        std::fs::write(&file, r#"{ "scores-ops": "https://discord.com/api/webhooks/1/tok" }"#).unwrap();
+        let path = file.display().to_string();
+
+        assert_eq!(webhook_url("scores-ops", "BOT_FARM_WEBHOOK_UNSET_ON_PURPOSE", Some(&path)).as_deref(),
+                   Some("https://discord.com/api/webhooks/1/tok"));
+        // A name with no entry stays unresolved rather than borrowing another's.
+        assert_eq!(webhook_url("alerts-pi", "BOT_FARM_WEBHOOK_UNSET_ON_PURPOSE", Some(&path)), None);
+        assert_eq!(webhook_url("scores-ops", "BOT_FARM_WEBHOOK_UNSET_ON_PURPOSE", None), None);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn an_unreachable_webhook_says_nothing_about_the_url() {
+        // The branch that would otherwise carry ureq's error string, and the
+        // URL ureq puts inside it. Hermetic on purpose: the reading is fixed
+        // text precisely so that proving it leaks nothing needs no network.
+        let printed = unreachable_reading().to_string();
+        assert!(!printed.contains("discord.com"), "leaked: {printed}");
+        assert!(!printed.contains("http"), "leaked: {printed}");
+        assert_eq!(unreachable_reading()["ok"], false);
+    }
+
+    #[test]
+    fn a_webhook_url_is_never_echoed_back() {
+        // A resolved URL must not come back even in the reading that says it
+        // is wrong — this is the one path where the URL is in hand.
+        std::env::set_var("BOT_FARM_WEBHOOK_ALERTS_PI", "https://evil.example/s3cr3t-token");
+        let v = webhook("alerts-pi", None).unwrap();
+        std::env::remove_var("BOT_FARM_WEBHOOK_ALERTS_PI");
+        let printed = v.to_string();
+        assert!(!printed.contains("s3cr3t-token"), "leaked: {printed}");
+        assert!(!printed.contains("evil.example"), "leaked: {printed}");
     }
 }

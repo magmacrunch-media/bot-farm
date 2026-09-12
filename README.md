@@ -13,8 +13,20 @@ Built on [magma-kit](../../engines/magma-kit).
 |---|---|---|
 | **PASTURE** | GitHub Actions workflows on `magmacrunch.com` | the latest run of each workflow |
 | **COOP** | the eight Pi cron bots (`arcade/scripts/bot-*.sh`) | the commit each leaves when it succeeds — the Pi answers only on Tailscale, and three of them leave no trace at all, which the farm says rather than guesses |
-| **BARN** | MC1 scheduled tasks: the Historian, Ollama, SyncRepos, the dormant Dolphin tasks | Task Scheduler, plus an HTTP probe of Ollama |
+| **BARN** | MC1 scheduled tasks: the Historian, Ollama, SyncRepos, the dormant Dolphin tasks | Task Scheduler, plus an HTTP probe of Ollama — and for the Historian, the journal it writes about itself |
 | **STABLE** | the two self-hosted runners | the runners API |
+| **DOVECOTE** | the three Discord webhooks everything else posts through | a GET on the webhook, when this machine holds a copy of its URL |
+
+A bot goes in the field that says where it runs — PASTURE is GitHub Actions,
+BARN is this machine's scheduled tasks — with one exception: the DOVECOTE is
+a category rather than a place, because a webhook runs nowhere and belongs
+beside the other webhooks.
+
+The pasture is every workflow on the site, which it had not been: `ci.yml`
+and `backup-private.yml` were added on 2026-09-11, both failing at the time
+and neither watched by anything. The site's own `bot-status.yml` reports on
+six workflows and lists *itself* among them, so it is also the one thing
+that cannot report its own silence — which this app can.
 
 Every state has a rule, and the rules live in one file
 ([`app/core/health.js`](app/core/health.js)) so they can be read:
@@ -33,6 +45,49 @@ The website's own weekly report once printed "active" for every Pi bot
 through a two-week outage, because it checked nothing. UNKNOWN exists so this
 app cannot do that: a bot only reads well when something it did can be seen.
 
+### The Historian is read from its journal, not from its task
+
+The scheduled task is the reading that misleads. `MagmaCrunchHistorianBot`
+runs, the bot holds its Discord gateway, and it answers every message with
+"I couldn't reach Ollama just now" — which is what it did from 2026-08-24 to
+2026-09-04 while every signal anybody had said it was up.
+
+So the Historian's evidence is the JSONL journal it writes at startup:
+`discord_ready`, then `ollama_ready` (with `model_present`) or
+`ollama_unreachable`. Three separate things have to be true for it to graze
+— the gateway connected, Ollama answered, the model is loaded — and any one
+of them failing is a bot that is running and useless. The task is still read
+alongside, because a journal is history: a perfect startup line proves
+nothing once the process has gone.
+
+Only those three events cross the bridge. The journal also records every
+message anybody sends the bot, and `farm.rs` reads an allowlist of event
+names and drops any `text` field it meets.
+
+### The dovecote
+
+A webhook is not a bot, but a dead one is the quietest failure on the farm:
+the alert is accepted by nobody and every bot involved still reads healthy.
+`weekly-scores.yml` posted into a 403 from 2026-08-08 and the only record is
+a comment somebody had to notice and write.
+
+A webhook URL is a bearer credential, so the herd names one and never holds
+one. `farm.rs` resolves the name at probe time — environment first, then
+`webhooks.json` beside herd.json in the config directory — GETs it, and
+reports the name Discord answers with, or its 401 / 404. The URL never
+crosses the bridge, is never returned even in the reading that says it is
+wrong, and is never written to the log; the transport-error path returns
+fixed text rather than ureq's message, because ureq puts the URL into it.
+
+```json
+{ "alerts-pi": "https://discord.com/api/webhooks/..." }
+```
+
+A name that resolves to nothing reads UNKNOWN, which is the truth — the
+webhook may be perfectly alive on the Pi, where the only valid copy of the
+alerts URL actually lives. As it stands MC1 holds none of the three, so all
+three pigeons are unaccounted for until somebody writes that file.
+
 ## Chores
 
 - **FEED** — run it now. `gh workflow run` for anything with a
@@ -49,10 +104,16 @@ Every chore confirms first and is written to the log file.
 
 Nothing crosses the bridge but names. The Rust side (`desktop/src-tauri/src/farm.rs`)
 runs `gh` — so the app has whatever `gh auth login` has, and never holds a
-token — reads scheduled tasks through PowerShell, and makes two HTTP probes it
-knows the URLs of. GitHub paths must sit under the org, task names and
-workflow files are validated against a character set, and VISIT opens
-`https://github.com/` and nothing else.
+token — reads scheduled tasks through PowerShell, makes HTTP probes it knows
+the URLs of, and reads one allowlisted journal directory. GitHub paths must
+sit under the org, task names and workflow files are validated against a
+character set, and VISIT opens `https://github.com/` and nothing else.
+
+The two additions of 2026-09-11 keep that rule rather than bending it: the
+webview asks about a journal or a webhook *by name*, and gets back neither a
+webhook URL nor a line of the Historian's conversation. Both are tested for,
+because both are the kind of thing that leaks by accident — through an error
+string, or through a field nobody thought about.
 
 Feeds are fetched independently: the Pi being off the tailnet dims the coop
 and nothing else, and the header strip says which feed failed.
@@ -78,8 +139,15 @@ strip.
 ```
 
 Source kinds: `workflow` (repo, file), `commit` (repo, subject), `task`
-(task), `runner` (repo, name), `probe` (probe, optional task), `none` (why).
+(task), `runner` (repo, name), `probe` (probe, optional task), `journal`
+(journal, optional task), `webhook` (webhook), `none` (why).
 Feed kinds: `workflow`, `task`. `stale` is hours.
+
+A source may not carry a URL, and a record that does is dropped with that
+reason. `journal` and `webhook` name something the desktop side knows how to
+resolve, so a new one of either means a row in `JOURNALS` or `WEBHOOKS` in
+[`farm.rs`](desktop/src-tauri/src/farm.rs) too — a name it does not know is
+an error, not a fetch.
 
 ## Build
 

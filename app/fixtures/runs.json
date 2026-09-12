@@ -176,5 +176,27 @@
   "updated_at": "2026-08-08T23:26:40Z"
  },
  "magmacrunch-media/magmacrunch.com/play-counts.yml": null,
- "magmacrunch-media/magmacrunch.com/smoke-test.yml": null
+ "magmacrunch-media/magmacrunch.com/smoke-test.yml": null,
+ "magmacrunch-media/magmacrunch.com/ci.yml": {
+  "conclusion": "failure",
+  "event": "push",
+  "html_url": "https://github.com/magmacrunch-media/magmacrunch.com/actions/runs/34668789992",
+  "name": "CI",
+  "path": ".github/workflows/ci.yml",
+  "run_attempt": 1,
+  "run_started_at": "2026-09-12T02:51:12Z",
+  "status": "completed",
+  "updated_at": "2026-09-12T02:52:34Z"
+ },
+ "magmacrunch-media/magmacrunch.com/backup-private.yml": {
+  "conclusion": "failure",
+  "event": "push",
+  "html_url": "https://github.com/magmacrunch-media/magmacrunch.com/actions/runs/34554339016",
+  "name": "Backup to Private Repo",
+  "path": ".github/workflows/backup-private.yml",
+  "run_attempt": 1,
+  "run_started_at": "2026-09-11T02:22:03Z",
+  "status": "completed",
+  "updated_at": "2026-09-11T02:22:33Z"
+ }
 }

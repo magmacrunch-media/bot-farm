@@ -49,6 +49,11 @@
         tasksList: () => T.invoke('tasks_list'),
         taskAction: (action, name) => T.invoke('task_action', { action, name }),
         probe: (name) => T.invoke('probe', { name }),
+        // Both take a NAME. journal resolves to one allowlisted directory and
+        // returns only readiness events — never a line of conversation;
+        // webhook resolves to a URL this side holds and never returns it.
+        journal: (name) => T.invoke('journal', { name }),
+        webhook: (name) => T.invoke('webhook', { name }),
         openUrl: (url) => T.invoke('open_url', { url }),
         confirm: (message, title) => T.dialog('ask', { message, title: title || 'BOT//FARM' }),
     };

@@ -1,0 +1,14 @@
+{
+ "alerts-pi": {
+  "known": false,
+  "detail": "no local copy — set BOT_FARM_WEBHOOK_ALERTS_PI, or add \"alerts-pi\" to webhooks.json"
+ },
+ "alerts-actions": {
+  "known": false,
+  "detail": "no local copy — set BOT_FARM_WEBHOOK_ALERTS_ACTIONS, or add \"alerts-actions\" to webhooks.json"
+ },
+ "scores-ops": {
+  "known": false,
+  "detail": "no local copy — set BOT_FARM_WEBHOOK_SCORES_OPS, or add \"scores-ops\" to webhooks.json"
+ }
+}

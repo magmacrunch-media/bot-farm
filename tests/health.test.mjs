@@ -75,6 +75,19 @@ export default function (M) {
         eq(C.classify(bot({ longRunning: true, source: { kind: 'runner' } }), ev({ ok: true, running: false }), NOW).state, 'grazing');
         eq(C.classify(bot({ longRunning: true, source: { kind: 'runner' } }), ev({ ok: true, running: true }), NOW).state, 'working');
         eq(C.classify(bot({ longRunning: true, source: { kind: 'runner' } }), ev({ ok: false, detail: 'offline' }), NOW).state, 'sick');
+        // A journal is read the same way: what it says at startup is the
+        // verdict, and the Historian never reads WORKING because answering a
+        // question is not something this app can see it doing.
+        const journal = { kind: 'journal', journal: 'historian', task: 'X' };
+        eq(C.classify(bot({ longRunning: true, source: journal }), ev({ ok: true, detail: 'Discord · Ollama reachable' }), NOW).state, 'grazing');
+        eq(C.classify(bot({ longRunning: true, source: journal }), ev({ ok: false, detail: 'Ollama unreachable' }), NOW).state, 'sick');
+    });
+
+    test('a webhook nobody here holds is unknown, and a refused one is sick', () => {
+        const hook = { kind: 'webhook', webhook: 'alerts-pi' };
+        eq(C.classify(bot({ source: hook }), ev({ found: null, detail: 'no local copy of this webhook' }), NOW).state, 'unknown');
+        eq(C.classify(bot({ source: hook }), ev({ ok: false, detail: 'Discord refuses it: 401' }), NOW).state, 'sick');
+        eq(C.classify(bot({ source: hook }), ev({ ok: true, detail: 'Discord answers' }), NOW).state, 'grazing');
     });
 
     test('ago rounds the way a farmer talks', () => {

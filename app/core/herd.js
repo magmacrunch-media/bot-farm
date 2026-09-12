@@ -16,6 +16,12 @@
 //   task      a Windows scheduled task on this machine
 //   runner    a self-hosted Actions runner
 //   probe     a named HTTP check the desktop side knows how to make
+//   journal   the readiness lines a long-running bot writes to its own JSONL
+//             journal — what it did at startup, which is the only durable
+//             evidence for a bot whose process can be alive and useless
+//   webhook   a named Discord webhook, checked by GET. The herd names it;
+//             the URL is resolved on the desktop side at probe time and
+//             never crosses the bridge (see farm.rs)
 //   none      the bot leaves no trace anywhere reachable; say so, do not guess
 //
 // Nothing here fetches. core/evidence.js turns raw feeds into per-bot
@@ -34,6 +40,7 @@
         { id: 'coop', name: 'COOP', tag: 'Pi cron', blurb: 'the Raspberry Pi — seen by the commits they leave; Pi time is America/New_York' },
         { id: 'barn', name: 'BARN', tag: 'MC1 scheduled tasks', blurb: 'this machine' },
         { id: 'stable', name: 'STABLE', tag: 'self-hosted runners', blurb: 'the workhorses' },
+        { id: 'dovecote', name: 'DOVECOTE', tag: 'Discord webhooks', blurb: 'the pigeons that carry what the bots say off the farm' },
     ];
 
     const SPECIES = {
@@ -49,6 +56,7 @@
         cat: { sprite: '🐈', name: 'barn cat' },
         horse: { sprite: '🐴', name: 'horse' },
         owl: { sprite: '🦉', name: 'owl' },
+        pigeon: { sprite: '🕊️', name: 'carrier pigeon' },
     };
 
     const DAY = 24;
@@ -118,6 +126,24 @@
             source: { kind: 'workflow', repo: SITE, file: 'bake-cache.yml' },
             feed: { kind: 'workflow', repo: SITE, file: 'bake-cache.yml' },
         },
+        // The two the farm could not see until 2026-09-11. `bot-status.yml`
+        // watches ci.yml and this app did not; neither of them watched
+        // backup-private.yml; and bot-status lists itself among the
+        // workflows it reports on, so nothing but this app would notice if
+        // the reporter itself stopped. Both were failing when they were
+        // added, which is the argument for adding them.
+        {
+            id: 'ci', name: 'CI', species: 'bee', field: 'pasture',
+            does: 'the site’s own test suite on every push', cadence: 'on push',
+            source: { kind: 'workflow', repo: SITE, file: 'ci.yml' },
+            feed: { kind: 'workflow', repo: SITE, file: 'ci.yml' },
+        },
+        {
+            id: 'backup-private', name: 'Backup to Private Repo', species: 'goat', field: 'pasture',
+            does: 'mirrors the arcade server code to the private repo', cadence: 'on a push that touches it',
+            source: { kind: 'workflow', repo: SITE, file: 'backup-private.yml' },
+            feed: { kind: 'workflow', repo: SITE, file: 'backup-private.yml' },
+        },
 
         // ── COOP: Pi cron bots ──────────────────────────────
         {
@@ -183,7 +209,14 @@
         {
             id: 'historian', name: 'Historian', species: 'dog', field: 'barn',
             does: 'the Discord bot — answers questions about the archive', cadence: 'always on', longRunning: true,
-            source: { kind: 'task', task: 'MagmaCrunchHistorianBot' },
+            // Not the task. The task running is exactly the reading that
+            // misleads: the bot holds its Discord gateway with no model
+            // server behind it and answers every message with "I couldn't
+            // reach Ollama just now". It was in that state from 2026-08-24
+            // to 2026-09-04 and nothing surfaced it. Its journal records
+            // both halves at startup, so both halves are read here; the
+            // task still lends whether the process is up at all.
+            source: { kind: 'journal', journal: 'historian', task: 'MagmaCrunchHistorianBot' },
             feed: { kind: 'task', task: 'MagmaCrunchHistorianBot' },
         },
         {
@@ -225,9 +258,38 @@
             does: 'the Windows runner: the Pi deploy is pinned to it', cadence: 'on demand', longRunning: true,
             source: { kind: 'runner', repo: SITE, name: 'MC1-runner' },
         },
+
+        // ── DOVECOTE: the Discord webhooks ──────────────────
+        //
+        // A webhook is not a bot, but a dead one is the farm's quietest
+        // failure: every alert the bots send through it is accepted by
+        // nobody and no bot reads any worse for it. `weekly-scores.yml`
+        // posted into a 403 from 2026-08-08 and the only record of it is a
+        // comment somebody had to go and write.
+        //
+        // The URL is a bearer credential, so it is not here. The herd names
+        // a webhook; the desktop side resolves the URL at probe time from
+        // the environment or webhooks.json in the config directory, and a
+        // name it cannot resolve reads UNKNOWN, never healthy.
+        {
+            id: 'hook-alerts-pi', name: 'Alerts · Pi copy', species: 'pigeon', field: 'dovecote',
+            does: 'carries the service-health and link-check alerts the Pi bots send', cadence: 'on an alert',
+            source: { kind: 'webhook', webhook: 'alerts-pi' },
+        },
+        {
+            id: 'hook-alerts-actions', name: 'Alerts · Actions copy', species: 'pigeon', field: 'dovecote',
+            does: "the same webhook as the repo's DISCORD_WEBHOOK_URL secret — 403 since 2026-08-08, so every Actions post through it is swallowed",
+            cadence: 'on an alert',
+            source: { kind: 'webhook', webhook: 'alerts-actions' },
+        },
+        {
+            id: 'hook-scores-ops', name: 'High Scores', species: 'pigeon', field: 'dovecote',
+            does: 'MAGMA//OPS posts through it when a new #1 score is set', cadence: 'on a new #1',
+            source: { kind: 'webhook', webhook: 'scores-ops' },
+        },
     ];
 
-    const SOURCE_KINDS = ['workflow', 'commit', 'task', 'runner', 'probe', 'none'];
+    const SOURCE_KINDS = ['workflow', 'commit', 'task', 'runner', 'probe', 'journal', 'webhook', 'none'];
     const FEED_KINDS = ['workflow', 'task'];
 
     /** Every reason a record is not a bot, or [] when it is one. */
@@ -245,6 +307,12 @@
         else if (s.kind === 'task' && !s.task) out.push('task source needs task');
         else if (s.kind === 'runner' && !(s.repo && s.name)) out.push('runner source needs repo and name');
         else if (s.kind === 'probe' && !s.probe) out.push('probe source needs probe');
+        else if (s.kind === 'journal' && !s.journal) out.push('journal source needs journal');
+        else if (s.kind === 'webhook' && !s.webhook) out.push('webhook source needs webhook');
+        // A URL in the herd is a credential in a config file. The desktop
+        // side resolves webhooks by name and there is nothing to gain by
+        // letting one through, so say no rather than quietly carrying it.
+        if (s && (s.url || s.webhookUrl)) out.push('a source may not carry a URL — name the webhook instead');
         const f = bot.feed;
         if (f !== undefined) {
             if (!f || !FEED_KINDS.includes(f.kind)) out.push('feed.kind missing or unknown');

@@ -34,6 +34,25 @@ export default function (M) {
         }
     });
 
+    test('no source carries a URL — webhooks are named, not held', () => {
+        const withUrl = (s) => H.problems({ id: 'x', name: 'X', species: 'pigeon', field: 'dovecote', source: s });
+        ok(withUrl({ kind: 'webhook', webhook: 'a', url: 'https://discord.com/api/webhooks/1/tok' })
+            .some((p) => p.includes('may not carry a URL')), 'a herd.json cannot smuggle one in');
+        ok(withUrl({ kind: 'webhook', webhook: 'a', webhookUrl: 'https://discord.com/api/webhooks/1/tok' })
+            .some((p) => p.includes('may not carry a URL')), 'nor under another name');
+        eq(withUrl({ kind: 'webhook', webhook: 'a' }), []);
+        for (const b of H.DEFAULT) {
+            ok(!b.source.url && !b.source.webhookUrl, `${b.id} names its source, it does not hold it`);
+        }
+    });
+
+    test('the journal and webhook sources name what they read', () => {
+        eq(H.problems({ id: 'x', name: 'X', species: 'dog', field: 'barn', source: { kind: 'journal' } }),
+            ['journal source needs journal']);
+        eq(H.problems({ id: 'x', name: 'X', species: 'pigeon', field: 'dovecote', source: { kind: 'webhook' } }),
+            ['webhook source needs webhook']);
+    });
+
     test('problems() names each thing wrong', () => {
         const p = H.problems({ id: 'Bad Id', species: 'dragon', field: 'moon', source: { kind: 'magic' }, feed: {}, stale: -1 });
         ok(p.some((x) => x.includes('kebab')), 'id');
