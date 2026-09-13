@@ -1,6 +1,6 @@
 # Vendored from magma-kit — GENERATED, do not edit
 
-Kit version: 0.2.1
+Kit version: 0.3.0
 
 These files are byte-copies from the magma-kit repo. To change one,
 edit it in magma-kit and run `npm run sync-kit` here. To verify nothing
@@ -8,7 +8,7 @@ has drifted, run `npm run check:kit`.
 
 - `app/kit/artstore.js` sha256:68c2db47c75ecddeb924d71af24cb90c1ddcd34d4b67cd0e4600d53641c2697d
 - `app/kit/boot.js` sha256:3867389fccafcb0f8394e82a347b7b11d7ba3b77c56314307692e949e54877c6
-- `app/kit/bridge-core.js` sha256:8d9f0a2450e6d336bda69beb21ec1aed214516101d242ba84d7e5e81f07670d9
+- `app/kit/bridge-core.js` sha256:19c7acadbb881eb05eaf042998acd3c87c42832d9cc77e4391f9d13846b688b1
 - `app/kit/dom.js` sha256:1d0632613e14e00f09948d4b39798e28e69d38ae30057c9a8a78b77aeacde3e8
 - `app/kit/history.js` sha256:3611e7842ac8ad453391c542fea6c2774ee377ffde0d98e28e8192e48f2ac8b4
 - `app/kit/keys.js` sha256:a0ef34b7eb3d03bd9cadda0a4821f246ce326e4754b93074e52d24d524259865
