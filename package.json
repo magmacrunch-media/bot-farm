@@ -9,7 +9,8 @@
     "check": "npm run lint && npm test",
     "sync-kit": "node ../magma-kit/scripts/sync.mjs .",
     "check:kit": "node ../magma-kit/scripts/sync.mjs --check .",
-    "serve": "npx serve app -l 3300"
+    "serve": "npx serve app -l 3300",
+    "mcp": "node mcp/server.mjs --stdio"
   },
   "devDependencies": {
     "eslint": "^9 || ^10"

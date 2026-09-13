@@ -149,6 +149,113 @@ resolve, so a new one of either means a row in `JOURNALS` or `WEBHOOKS` in
 [`farm.rs`](desktop/src-tauri/src/farm.rs) too — a name it does not know is
 an error, not a fetch.
 
+## Reading the farm from somewhere else (MCP)
+
+`mcp/` serves the same readings as MCP tools, so a client that is not this
+window — opencode on a Mac, Claude Code, anything that speaks MCP — can ask how
+the farm is doing. Two tools, `farm_status` and `farm_bot`, and no others:
+**it is read-only**. The chores stay in the app, where each one confirms
+through a dialog and is written to the log, and an MCP client has neither.
+
+Nothing about a bot is restated in that directory. `mcp/walk.mjs` evaluates
+`app/core/` and `ui/feeds.js` exactly as the page does, through the same
+harness the test suite uses, and substitutes one thing at the bottom:
+`BotFarm.farm` becomes `farm-cli` instead of Tauri's bridge.
+
+`farm-cli` is a second binary in the desktop crate
+([`src/bin/farm-cli.rs`](desktop/src-tauri/src/bin/farm-cli.rs)) that prints
+one JSON value from the same `farm::*` functions the window calls. That is the
+whole reason it exists rather than having Node shell out to `gh` and PowerShell
+itself: the org-prefix check on API paths, the task-name character set, the
+journal's event allowlist and the webhook path that never returns a URL are all
+in farm.rs, they all have tests, and a second implementation would be a second
+thing to get wrong. `gh_workflow`, `task_action` and `open_url` sit one module
+away and are unreachable from the shim — `tests/mcp.test.mjs` fails if this
+file so much as names one.
+
+```bash
+cd desktop/src-tauri && cargo build --release --bin farm-cli
+```
+
+### On this machine
+
+```bash
+node mcp/server.mjs --stdio
+```
+
+That is what a local client wants. In Claude Code, `.mcp.json`:
+
+```json
+{ "mcpServers": { "bot-farm": { "command": "node", "args": ["C:/magma/dev/magmacrunch/apps/bot-farm/mcp/server.mjs", "--stdio"] } } }
+```
+
+### From another machine
+
+`node mcp/server.mjs --http` speaks the same protocol over `POST /mcp`. It
+binds `127.0.0.1` by default and **refuses to bind anything else without a
+token**, because a farm reading names every bot this family runs and which of
+them are down.
+
+`mcp/install.ps1` writes a token to `%APPDATA%\com.magmacrunch.bot-farm\mcp-token`
+— beside `herd.json` and `webhooks.json`, for the same reasons — and registers
+`MagmaCrunchBotFarmMCP`, a logon task that keeps the server up through
+`serve.vbs` → `serve.bat`. The server finds the token on its own, so it never
+appears on a command line. No elevation: the task runs as the logged-on user,
+which is the only account that can see that directory or the `gh` keyring the
+readings depend on.
+
+```powershell
+.\mcp\install.ps1
+Start-ScheduledTask -TaskName MagmaCrunchBotFarmMCP
+```
+
+Then reach it over Tailscale, either by publishing the loopback listener
+through tailscaled —
+
+```powershell
+tailscale serve --bg --http=8787 http://127.0.0.1:8787
+```
+
+— which needs no firewall rule and leaves nothing listening on a real
+interface, or by binding the tailnet address directly with
+`.\mcp\install.ps1 -Tailnet`, which does need one (the script prints it).
+
+On the Mac, in `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "bot-farm": {
+      "type": "remote",
+      "url": "http://mc1.tail83d36d.ts.net:8787/mcp",
+      "enabled": true,
+      "headers": { "Authorization": "Bearer <the token install.ps1 printed>" }
+    }
+  }
+}
+```
+
+**MC1 sleeps constantly and something wakes it a minute later** — see the tree's
+CLAUDE.md — so the server being unreachable usually means the machine is
+asleep, not that anything is broken. `GET /health` answers without a token and
+is there to tell those apart; `wakeonlan` from `magmacrunch-server` is the way
+back in.
+
+Two more things worth knowing. A reading is cached for a minute and its age is
+always stated, because a walk is a dozen `gh` calls and a client asking three
+questions should not make the farm run three times; pass `refresh: true` to
+force one. And the task's paths are absolute, so **moving this repo breaks it**
+— the same trap as `MagmaCrunchHistorianBot`. Re-run `install.ps1` after a move.
+
+```bash
+node tests/run.mjs
+```
+
+covers the assembly against `app/fixtures/`, the protocol, the read-only
+guarantee and the refusal to serve the tailnet unguarded — all without a
+network or a built binary.
+
 ## Build
 
 ```bash

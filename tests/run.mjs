@@ -53,7 +53,8 @@ test('index.html loads kit, core and ui in order', () => {
 });
 
 const suites = ['./herd.test.mjs', './evidence.test.mjs', './health.test.mjs',
-    './version.test.mjs', './kit-integrity.test.mjs'];
+    './version.test.mjs', './kit-integrity.test.mjs',
+    './mcp.test.mjs'];
 for (const s of suites) {
     await Promise.race([
         (async () => (await import(s)).default(M))(),

@@ -10,7 +10,10 @@
 //! this file owns is the ALLOWLIST — one named command per thing the
 //! frontend may do.
 
-mod farm;
+// `pub` for the sake of src/bin/farm-cli.rs, which is the MCP server's
+// transport: the readings have a second reader now, and it must be the
+// same collectors behind the same allowlists rather than a copy of them.
+pub mod farm;
 
 use std::sync::Mutex;
 

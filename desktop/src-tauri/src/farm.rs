@@ -66,6 +66,22 @@ const WEBHOOK_PREFIX: &str = "https://discord.com/api/webhooks/";
 // ── process plumbing ────────────────────────────────────────
 
 /// On Windows a child console program flashes a window unless told not to.
+/// CREATE_NO_WINDOW is the whole of that. **Do not add DETACHED_PROCESS.**
+///
+/// It was tried on 2026-09-12 and it costs the entire BARN. A detached child
+/// gets no console at all, and `powershell.exe` without one exits 0 having
+/// written nothing -- no output, no error, no clue. `tasks_list` then parses
+/// an empty string, so every scheduled task reads UNKNOWN behind a feed error
+/// saying `EOF while parsing a value at line 1 column 0`, and sync-repos --
+/// whose only evidence is its task -- cannot be seen at all. `gh` and the
+/// HTTP probes never notice, so the farm still looks mostly fine.
+///
+/// The two flags are not additive: MSDN says CREATE_NO_WINDOW is IGNORED when
+/// combined with DETACHED_PROCESS. So the flag that was wanted is not in
+/// effect and the flag doing the work is the one breaking the reading -- which
+/// is why adding it looks harmless. Measured both ways: detached, powershell
+/// returns empty; with CREATE_NO_WINDOW alone it answers and no window
+/// appears, which was the only thing being asked for.
 fn quiet(cmd: &mut Command) -> &mut Command {
     #[cfg(windows)]
     {

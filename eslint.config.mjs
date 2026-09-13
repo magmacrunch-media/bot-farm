@@ -74,7 +74,7 @@ export default [
         rules,
     },
     {
-        files: ['tests/**/*.mjs', 'scripts/**/*.mjs'],
+        files: ['tests/**/*.mjs', 'scripts/**/*.mjs', 'mcp/**/*.mjs'],
         languageOptions: {
             ecmaVersion: 'latest',
             sourceType: 'module',
