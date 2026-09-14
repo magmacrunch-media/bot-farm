@@ -67,4 +67,13 @@ enforces all of this.
 
 ## Git
 
-Commit as magmacrunch media <magmacrunchmedia@gmail.com>. No AI attribution.
+Commit as magmacrunchmedia <magmacrunchmedia@gmail.com> — ONE WORD, and by
+doing nothing: `~/.gitconfig` resolves to it here. Do not set `user.name` or
+`user.email` per repo; a local override is exactly what was cleared across the
+tree on 2026-09-04. Check with `git -C . config user.email`.
+
+`Cargo.toml`'s `authors` and `tauri.conf.json`'s `publisher`/`copyright` keep
+the spaced `magmacrunch media` — that is package metadata, not an identity, and
+is spelled that way in every app here.
+
+No AI attribution in commits, code comments, or docs.
