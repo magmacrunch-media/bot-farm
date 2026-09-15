@@ -295,3 +295,9 @@ npm run serve
 then open `http://localhost:3300/ui/`. With no Tauri backend the page reads
 `app/fixtures/*.json` — captured from real data — and shows FIXTURES in the
 header. Chores are hidden; VISIT works.
+
+## Support This Project
+
+If you find this useful, consider supporting its development:
+
+[![Sponsor](https://img.shields.io/badge/%E2%9D%A4_Sponsor-pink)](https://github.com/sponsors/magmacrunch-media)
